@@ -1,123 +1,89 @@
+import { gql, useMutation } from "@apollo/client"
+import { ErrorMessage, Field, Form, Formik } from "formik";
 import React from "react";
 import { useHistory } from "react-router-dom";
-import {useState} from 'react';
-import { PrismaClient } from '@prisma/client'
+import * as Yup from 'yup';
 
 
-const prisma = new PrismaClient()
-const Register = () => {
+//import { validationSchema } from "graphql";
+
+const REGISTER_MUTATION = gql`
+mutation register ($name: String!, $email: String!, $password: String!, $username: String!,  $profilePic: String ){
+    register (name : $name, email: $email, password: $password, username: $username,  profilePic: $profilePic, ){
+        token
+    }
+}`
+
+interface RegisterValues{
+    name: string
+    email:string
+    password:string
+    username:string
+    confirmPassword:string
+    profilePic: string
+} 
+const Register = ()=>{
     const history = useHistory()
-    const [values, setValues] = useState({
+    
+    const [register, {data}] = useMutation(REGISTER_MUTATION)
+
+    const initialValues: RegisterValues = {
         name: '',
-        username: '',
         email: '',
         password: '',
-        confirmPassword: '', 
-        profilePic: ''
-    }) 
+        username: '',
+        profilePic: '',
+        confirmPassword: '' 
+    }
 
-const handleChange = (e : any) => {
-    setValues({
-      ...values,
-      [e.target.name]: e.target.value,
-      [e.target.username]: e.target.value,
-      [e.target.email]: e.target.value,
-      [e.target.password]: e.target.value,
-      [e.target.confirmPassword]: e.target.value,
-      [e.target.profilePic]: e.target.value
-    });
-  };
-
-  const resetValues = (e : any) => {
-    setValues({
-      ...values,
-      [e.target.name]: "",
-      [e.target.username]: "",
-      [e.target.email]: "",
-      [e.target.password]: "",
-      [e.target.confirmPassword]: "",
-      [e.target.profilePic]: ""
-    });
-  };
+const validationSchema = Yup.object({
+    email: Yup.string().email("Please enter a valid e-mail address").required("Please enter your e-mail"),
+    name: Yup.string().max(30, "Your name shouldn't exceed 30 characters").required("Please enter your name"),
+    username: Yup.string().max(15, "Your username shouldn't exceed 15 characters").required("Please enter your username"),
+    password: Yup.string().max(30, "Your password shouldn't exceed 30 characters").required("Password required"),
+    confirmPassword: Yup.string().oneOf([Yup.ref('password')],"Passwords don't match"),
+    profilePic: Yup.string().max(15, "Your username shouldn't exceed 15 characters").required("Please upload your image"),
+})
 
     return(
         <div>
             <h2>Register</h2>
-            <form onSubmit={async (e)=>{
-                const user = await prisma.user.create({
-                    data:{
-                        name: values.name,
-                        username: values.username,
-                        email: values.email,
-                        password: values.password,
-                        profilePic: values.profilePic
-                      },
-                    });
-                    console.log(user.name);
-                    localStorage.setItem('token', user.name);
-                    resetValues(e)
-                    history.push('/')
-                  }
-            }>
-            <label>Name:
-            <input
-                type="text"
-                name="name"
-                value={values.name}
-                placeholder = "Jane Doe"/>
-                onChange={handleChange}
-            </label>
+ 
+            <Formik
+            initialValues={initialValues}
+            validationSchema = {validationSchema}
+            onSubmit={async (values, {setSubmitting})=>{
+                setSubmitting(true)
+                const response = await register({
+                    variables: values
+                })
+                localStorage.setItem('token', response.data.register.token)
+                setSubmitting(false)
+                history.push('/')
+            }}>
+            
+            <Form>
+                <Field name = "name" type = 'text' placeholder = "Jane Doe" />
+                <ErrorMessage  name = 'name' component = {'div'} />
 
-                
-            <label>Username:
-            <input
-                type="text"
-                name="username"
-                value={values.username}
-                placeholder = "janedoe123"
-                onChange={handleChange}/>
-            </label>
+                <Field name = "username" type = 'text' placeholder = "jdoe123" />
+                <ErrorMessage  name = 'username' component = {'div'} />
 
+                <Field name = "email" type = 'text' placeholder = "janedoe@mail.com" />
+                <ErrorMessage  name = 'email' component = {'div'} />
 
-            <label>E-mail:
-            <input
-                type="text"
-                name="email"
-                value={values.email}
-                placeholder = "janedoe@mail.com"
-                onChange={handleChange}/>
-            </label>
+                <Field name = "password" type = 'password' placeholder = "Password" />
+                <ErrorMessage  name = 'password' component = {'div'} />
 
-            <label>Password:
-            <input
-                type="password"
-                name="password"
-                value={values.password}
-                placeholder = "Password required"
-                onChange={handleChange}/>
-            </label>
+                <Field name = "confirmPassword" type = 'password' placeholder = "Confirm password" />
+                <ErrorMessage  name = 'confirmPassword' component = {'div'} />
 
-            <label>Confirm password:
-            <input
-                type="password"
-                name="confirmPassword"
-                value={values.confirmPassword}
-                placeholder = "Please re-enter your password"
-                onChange={handleChange}/>
-            </label>
-
-            <label>Upload your image:
-            <input
-                type="text"
-                name="profilePic"
-                value={values.profilePic}
-                placeholder = "I wanna see you"
-                onChange={handleChange}/>
-            </label>
+                <Field name = "profilePic" type = 'text' placeholder = "Image" />
+                <ErrorMessage  name = 'profilePic' component = {'div'} />
 
                 <button type = 'submit'> Register</button>
-            </form>
-            
+            </Form>
+            </Formik>
 
         </div>
     )

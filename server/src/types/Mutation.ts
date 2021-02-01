@@ -8,7 +8,7 @@ export const Mutation = mutationType({
     t.field('register', {
       type: 'AuthPayload',
       args: {
-        name: stringArg(),
+        name: nonNull(stringArg()),
         email: nonNull(stringArg()),
         password: nonNull(stringArg()),
         username: nonNull(stringArg()),
